@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
     // Parsing command line arguments
     if (rank == 0) {
         if (argc != 2) {
-            std::cerr << "Usage: " << argv[0] << " <number_of_points>\n";
+            std::cout << "Invalid number of argumemnts." << std::endl;
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
         n = atoll(argv[1]);
