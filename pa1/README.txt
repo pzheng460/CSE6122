@@ -17,3 +17,4 @@ Instructions
    Replace <number_of_processes> with the number of processes you want to run and <number of points to be used for the estimation> with the value of n.
 
 Testing Platform
+PACE-ICE cluster
