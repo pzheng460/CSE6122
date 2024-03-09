@@ -78,8 +78,8 @@ int main(int argc, char *argv[]) {
     // Transpose the local matrix in different blocks and then transpose the matrix to make the data contiguous
     for (int i = 0; i < n / size; i++) {
         for (int j = 0; j < n; j++) {
-            int y = j - j % (n / size);
-            local_transposed[(i + y) * (n / size) + j - y] = local_matrix[i * n + j];
+            int y = j - j % (n / size);  // y is the starting index of the block in y-axis; x is 0, so it is ignored here
+            local_transposed[(i + y) * (n / size) + j - y] = local_matrix[i * n + j];  // (i, j) -> (j - y, i + y) -> (i + y, j - y)
         }
     }
 
@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
         // Write file
         ofstream outFile(outputFile);
         if (!outFile.is_open()) {
-            cerr << "Can not open the file!"<< endl;
+            cerr << "Can not open the file:" << outputFile << endl;
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
 
