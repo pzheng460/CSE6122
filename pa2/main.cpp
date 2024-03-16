@@ -3,13 +3,35 @@
 #include <fstream>
 #include <vector>
 #include <cstdlib>
+#include <cmath>
 
 using namespace std;
 
 // Hypercubic permutation algorithm
 void HPC_Alltoall_H(int *sendbuf, int sendcount, MPI_Datatype sendtype,
                     int *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm) {
-    // To be implemented
+    int rank, size, typebytes;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+    MPI_Type_size(sendtype, &typebytes);
+
+    int send_bytes = sendcount * typebytes;
+    int recv_bytes = recvcount * typebytes;
+
+    char* send_buffer = (char*)sendbuf;
+    char* recv_buffer = (char*)recvbuf;
+
+    int mask = size/2;
+    int dest, src;
+    int tag = 0;
+
+    for (int i = 0; i < log2(size); i++) {
+        dest = rank ^ mask;
+        src = dest;
+        MPI_Sendrecv(send_buffer + (dest * send_bytes), send_bytes, MPI_BYTE, dest, tag,
+                    recv_buffer + (src * recv_bytes), recv_bytes, MPI_BYTE, src, tag, comm, MPI_STATUS_IGNORE);
+        mask = mask >> 1;
+    }
 }
 // Arbitrary permutation algorithm
 void HPC_Alltoall_A(int *sendbuf, int sendcount, MPI_Datatype sendtype,
