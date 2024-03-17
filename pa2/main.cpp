@@ -86,7 +86,20 @@ void HPC_Alltoall_H(int *sendbuf, int sendcount, MPI_Datatype sendtype,
 // Arbitrary permutation algorithm
 void HPC_Alltoall_A(int *sendbuf, int sendcount, MPI_Datatype sendtype,
                     int *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm) {
-    // To be implemented
+    int rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+    int tag = 0;
+    for (int j = 1; j < size; j++) {
+        int send_to = (rank + j) % size;
+        int recv_from = (rank - j + size) % size;
+
+        MPI_Request send_request;
+        MPI_Isend(sendbuf + send_to * sendcount, sendcount, sendtype, send_to, tag, comm, &send_request);
+
+        MPI_Recv(recvbuf + recv_from * recvcount, recvcount, recvtype, recv_from, tag, comm, MPI_STATUS_IGNORE);
+        MPI_Wait(&send_request, MPI_STATUS_IGNORE);
+    }
 }
 
 int main(int argc, char *argv[]) {
