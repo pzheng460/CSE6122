@@ -95,9 +95,11 @@ void HPC_Alltoall_A(int *sendbuf, int sendcount, MPI_Datatype sendtype,
         int recv_from = (rank - j + size) % size;
 
         MPI_Request send_request;
-        MPI_Isend(sendbuf + send_to * sendcount, sendcount, sendtype, send_to, tag, comm, &send_request);
+        MPI_Request recv_request;
 
-        MPI_Recv(recvbuf + recv_from * recvcount, recvcount, recvtype, recv_from, tag, comm, MPI_STATUS_IGNORE);
+        MPI_Isend(sendbuf + send_to * sendcount, sendcount, sendtype, send_to, tag, comm, &send_request);
+        MPI_Irecv(recvbuf + recv_from * recvcount, recvcount, recvtype, recv_from, tag, comm, &recv_request);
+
         MPI_Wait(&send_request, MPI_STATUS_IGNORE);
     }
 }
