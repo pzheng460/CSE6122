@@ -89,20 +89,27 @@ void HPC_Alltoall_A(int *sendbuf, int sendcount, MPI_Datatype sendtype,
     int rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
-    int tag = 0;
+
+    MPI_Request *requests = new MPI_Request[2 * (size - 1)];
+    MPI_Status *statuses = new MPI_Status[2 * (size - 1)];
+
+    memcpy(recvbuf + rank * recvcount, sendbuf + rank * sendcount, sendcount * sizeof(int));
+
+    int request_count = 0;
     for (int j = 1; j < size; j++) {
         int send_to = (rank + j) % size;
         int recv_from = (rank - j + size) % size;
 
-        MPI_Request send_request;
-        MPI_Request recv_request;
+        MPI_Isend(sendbuf + send_to * sendcount, sendcount, sendtype, send_to, 0, comm, &requests[request_count++]);
 
-        MPI_Isend(sendbuf + send_to * sendcount, sendcount, sendtype, send_to, tag, comm, &send_request);
-        MPI_Irecv(recvbuf + recv_from * recvcount, recvcount, recvtype, recv_from, tag, comm, &recv_request);
-
-        MPI_Wait(&send_request, MPI_STATUS_IGNORE);
+        MPI_Irecv(recvbuf + recv_from * recvcount, recvcount, recvtype, recv_from, 0, comm, &requests[request_count++]);
     }
+    MPI_Waitall(request_count, requests, statuses);
+
+    delete[] requests;
+    delete[] statuses;
 }
+
 
 int main(int argc, char *argv[]) {
     int rank, size;
