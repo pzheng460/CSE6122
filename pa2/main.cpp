@@ -10,29 +10,79 @@ using namespace std;
 // Hypercubic permutation algorithm
 void HPC_Alltoall_H(int *sendbuf, int sendcount, MPI_Datatype sendtype,
                     int *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm) {
-    int rank, size, typebytes;
+    int rank, size;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
-    MPI_Type_size(sendtype, &typebytes);
 
-    int send_bytes = sendcount * typebytes;
-    int recv_bytes = recvcount * typebytes;
-
-    char* send_buffer = (char*)sendbuf;
-    char* recv_buffer = (char*)recvbuf;
-
-    int mask = size/2;
+    int mask = size / 2; // mask is used to determine the destination
     int dest, src;
-    int tag = 0;
 
+    // Transfer data in send_buffer to recv_buffer
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < sendcount; j++) {
+            recvbuf[i * sendcount + j] = sendbuf[i * sendcount + j];
+        }
+    }
+
+    // iterate through each layer
     for (int i = 0; i < log2(size); i++) {
         dest = rank ^ mask;
         src = dest;
-        MPI_Sendrecv(send_buffer + (dest * send_bytes), send_bytes, MPI_BYTE, dest, tag,
-                    recv_buffer + (src * recv_bytes), recv_bytes, MPI_BYTE, src, tag, comm, MPI_STATUS_IGNORE);
+        // create new vectors to store half of the recv_buf
+        vector<int> temp1(recvcount * size / 2);
+        vector<int> temp2(recvcount * size / 2);
+        if ((mask & rank) == mask) {
+            MPI_Sendrecv(recvbuf, recvcount * size / 2, recvtype, dest, i,
+                        recvbuf, recvcount * size / 2 , recvtype, src, i, comm, MPI_STATUS_IGNORE);
+            for (int j = 0; j < size / 2; j++) {
+                for (int k = 0; k < recvcount; k++) {
+                    temp1[j * recvcount + k] = recvbuf[j * recvcount + k];
+                }
+            }
+            for (int j = 0; j < size / 2; j++) {
+                for (int k = 0; k < recvcount; k++) {
+                    temp2[j * recvcount + k] = recvbuf[(j + size / 2) * recvcount + k];
+                }
+            }
+            for (int j = 0; j < size / 2; j++) {
+                for (int k = 0; k < recvcount; k++) {
+                    recvbuf[(j * 2) * recvcount + k] = temp1[j * recvcount + k];
+                }
+            }
+            for (int j = 0; j < size / 2; j++) {
+                for (int k = 0; k < recvcount; k++) {
+                    recvbuf[(j * 2 + 1) * recvcount + k] = temp2[j * recvcount + k];
+                }
+            }
+        } else {
+            MPI_Sendrecv(recvbuf + recvcount * size / 2, recvcount * size / 2, recvtype, dest, i,
+                         recvbuf + recvcount * size / 2, recvcount * size / 2 , recvtype, src, i, comm, MPI_STATUS_IGNORE);
+            for (int j = 0; j < size / 2; j++) {
+                for (int k = 0; k < recvcount; k++) {
+                    temp1[j * recvcount + k] = recvbuf[(j + size / 2) * recvcount + k];
+                }
+            }
+            for (int j = 0; j < size / 2; j++) {
+                for (int k = 0; k < recvcount; k++) {
+                    temp2[j * recvcount + k] = recvbuf[j * recvcount + k];
+                }
+            }
+            for (int j = 0; j < size / 2; j++) {
+                for (int k = 0; k < recvcount; k++) {
+                    recvbuf[(j * 2 + 1) * recvcount + k] = temp1[j * recvcount + k];
+                }
+            }
+            for (int j = 0; j < size / 2; j++) {
+                for (int k = 0; k < recvcount; k++) {
+                    recvbuf[(j * 2) * recvcount + k] = temp2[j * recvcount + k];
+                }
+            }
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
         mask = mask >> 1;
     }
 }
+
 // Arbitrary permutation algorithm
 void HPC_Alltoall_A(int *sendbuf, int sendcount, MPI_Datatype sendtype,
                     int *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm) {
