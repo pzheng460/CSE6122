@@ -7,7 +7,7 @@ Instructions
 2. Open a terminal and navigate to the directory containing the Makefile.
 3. Run 'make' to compile the program.
 4. If you want to clean up the compiled files, run 'make clean'.
-5. Use mpiexec or mpirun followed by the number of processes you want to run and the name of your executable. The general syntax is:
+5. Use mpiexec or mpirun followed by the number of processes you want to run and the name of your executable(In default, it is transpose). The general syntax is:
 
    $ mpiexec -np <number of processes> ./transpose <input file> <output file> <algorithm> <matrix size>
 
@@ -15,7 +15,7 @@ Instructions
 
    $ mpirun -np <number of processes> ./transpose <input file> <output file> <algorithm> <matrix size>
 
-   Replace <number_of_processes> with the number of processes you want to run and <number of points to be used for the estimation> with the value of n.
+   Replace <number_of_processes> with the number of processes you want to run and other parameters you want.
 
    Sample command line input:
 
