@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdlib>
 #include <cmath>
+#include <cstring>
 
 using namespace std;
 
@@ -17,7 +18,7 @@ void HPC_Alltoall_H(int *sendbuf, int sendcount, MPI_Datatype sendtype,
     int mask = size / 2; // mask is used to determine the destination
     int dest, src;
 
-    // Transfer data in send_buffer to recv_buffer
+    // Transfer data in sendbuf to recvbuf
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < sendcount; j++) {
             recvbuf[i * sendcount + j] = sendbuf[i * sendcount + j];
@@ -28,7 +29,7 @@ void HPC_Alltoall_H(int *sendbuf, int sendcount, MPI_Datatype sendtype,
     for (int i = 0; i < log2(size); i++) {
         dest = rank ^ mask;
         src = dest;
-        // create new vectors to store half of the recv_buf
+        // create new vectors to store half of the recvbuf
         vector<int> temp1(recvcount * size / 2);
         vector<int> temp2(recvcount * size / 2);
         if ((mask & rank) == mask) {
