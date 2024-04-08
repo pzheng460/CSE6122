@@ -15,6 +15,7 @@ using SparseElement = tuple<int, int, uint64_t>;
 using SparseMatrix = vector<SparseElement>;
 using DenseMatrix = vector<uint64_t>;
 
+// Generate a sparse matrix
 SparseMatrix generateSparseMatrix(int n, double sparsity, int rank, int size) {
     SparseMatrix matrix;
 
@@ -40,6 +41,7 @@ SparseMatrix generateSparseMatrix(int n, double sparsity, int rank, int size) {
     return matrix;
 }
 
+// Transpose a sparse matrix
 SparseMatrix transposeSparseMatrix(const SparseMatrix& localB, int n, int rank, int size, MPI_Comm comm) {
     // Store the number of elements to be sent to each process or received from each process
     vector<int> sendCounts(size, 0);
@@ -157,16 +159,16 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Synchronize and start counting time
-    MPI_Barrier(MPI_COMM_WORLD);
-    double start_time, end_time;
-    start_time = MPI_Wtime();
-
     // Generate sparse matrices A and B
     SparseMatrix sparseLocalA = generateSparseMatrix(n, sparsity, rank, size);
     SparseMatrix sparseLocalB = generateSparseMatrix(n, sparsity, rank, size);
 
     DenseMatrix denseLocalC(n * n / size, 0);
+
+    // Synchronize and start counting time
+    MPI_Barrier(MPI_COMM_WORLD);
+    double start_time, end_time;
+    start_time = MPI_Wtime();
 
     // Transpose matrix B
     SparseMatrix TransposedSparseLocalB = transposeSparseMatrix(sparseLocalB, n, rank, size, MPI_COMM_WORLD);
@@ -209,12 +211,12 @@ int main(int argc, char* argv[]) {
         int send_size = sendBuffer.size();
         int recv_size;
 
-        // exchange data size
+        // Exchange data size
         MPI_Sendrecv(&send_size, 1, MPI_INT, left, 0, &recv_size, 1, MPI_INT, right, 0, ring_comm, MPI_STATUS_IGNORE);
 
         recvBuffer.resize(recv_size);
 
-        // exchange data
+        // Exchange data
         MPI_Sendrecv(sendBuffer.data(), sendBuffer.size() * sizeof(SparseElement), MPI_BYTE, left, 0,
                      recvBuffer.data(), recvBuffer.size() * sizeof(SparseElement), MPI_BYTE, right, 0, ring_comm, MPI_STATUS_IGNORE);
         TransposedSparseLocalB = recvBuffer;
