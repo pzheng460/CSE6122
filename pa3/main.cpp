@@ -41,7 +41,7 @@ SparseMatrix generateSparseMatrix(int n, double sparsity, int rank, int size) {
 }
 
 SparseMatrix transposeSparseMatrix(const SparseMatrix& localB, int n, int rank, int size, MPI_Comm comm) {
-    // 计算每个进程应该发送和接收的数据量
+    // Store the number of elements to be sent to each process or received from each process
     vector<int> sendCounts(size, 0);
     vector<int> recvCounts(size, 0);
     for (const auto& elem : localB) {
