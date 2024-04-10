@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Generate sparse matrices A and B
+    // Generate sparse matrices A, B and dense matrix C
     SparseMatrix sparseLocalA = generateSparseMatrix(n, sparsity, rank, size);
     SparseMatrix sparseLocalB = generateSparseMatrix(n, sparsity, rank, size);
 
@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(ring_comm, &ring_rank); // Ring rank
     MPI_Comm_size(ring_comm, &ring_size); // Ring size, should be same as size
 
-    // Sparse matrix multiplication logic
+    // Get the left and right neighbors
     int left, right;
     MPI_Cart_shift(ring_comm, 0, 1, &left, &right);
 
@@ -234,7 +234,7 @@ int main(int argc, char* argv[]) {
         DenseMatrix denseLocalA = convertToDenseMatrix(sparseLocalA, n, size);
         DenseMatrix denseLocalB = convertToDenseMatrix(sparseLocalB, n, size);
 
-        // Gather the dense matrices A and B to rank 0
+        // Gather the dense matrices A, B and C to rank 0
         MPI_Gather(denseLocalA.data(), n * n / size, MPI_UINT64_T, denseA.data(), n * n / size, MPI_UINT64_T, 0, MPI_COMM_WORLD);
         MPI_Gather(denseLocalB.data(), n * n / size, MPI_UINT64_T, denseB.data(), n * n / size, MPI_UINT64_T, 0, MPI_COMM_WORLD);
         MPI_Gather(denseLocalC.data(), n * n / size, MPI_UINT64_T, denseC.data(), n * n / size, MPI_UINT64_T, 0, MPI_COMM_WORLD);
