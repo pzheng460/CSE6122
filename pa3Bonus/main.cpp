@@ -24,8 +24,8 @@ SparseMatrix generateSparseMatrix(int n, double sparsity, int rank, int size) {
     mt19937_64 engine(seed); // Random number engine
     uniform_real_distribution<double> distDouble(0.0, 1.0);
     uint64_t root = static_cast<uint64_t>(sqrt(UINT64_MAX / n));
-//    uniform_int_distribution<uint64_t> distValue(0, root);
-    uniform_int_distribution<uint64_t> distValue(0, 10);
+    uniform_int_distribution<uint64_t> distValue(0, root);
+//    uniform_int_distribution<uint64_t> distValue(0, 10);
 
     int rowsPerProc = n / size;
     int startRow = rank * rowsPerProc;
@@ -58,7 +58,6 @@ SparseMatrix generateSparseMatrix2D(DenseMatrix Matrix1D, int n, int rank, int s
             uint64_t value = Matrix1D[i * n + j];
             if (value != 0) {
                 matrix2D.push_back(make_tuple(i, j, value));
-//                cout << "i: " << i << " j: " << j << " value: " << value << endl;
             }
         }
     }
