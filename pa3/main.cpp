@@ -30,11 +30,16 @@ SparseMatrix generateSparseMatrix(int n, double sparsity, int rank, int size) {
     int startRow = rank * rowsPerProc;
     int endRow = startRow + rowsPerProc;
 
+    int numElements = rowsPerProc * n;  // Total possible elements per processor
+    int estimatedElements = static_cast<int>(numElements * sparsity); // Estimate of actual elements based on sparsity
+    matrix.reserve(estimatedElements);  // Reserve space to reduce allocations
+
     for (int i = startRow; i < endRow; ++i) {
         for (int j = 0; j < n; ++j) {
             if (distDouble(engine) < sparsity) {
                 uint64_t value = distValue(engine) + 1; // Avoid zero
-                matrix.push_back(make_tuple(i, j, value));
+                // matrix.push_back(make_tuple(i, j, value));
+                matrix.emplace_back(i, j, value);
             }
         }
     }
@@ -92,8 +97,10 @@ SparseMatrix transposeSparseMatrix(const SparseMatrix& localB, int n, int rank, 
 
     // Transpose the received data
     SparseMatrix transposedLocalB;
+    transposedLocalB.reserve(totalRecv);  // Reserve space to avoid using push_back()
     for (const auto& elem : recvBuffer) {
-        transposedLocalB.push_back(make_tuple(get<1>(elem), get<0>(elem), get<2>(elem)));
+        // transposedLocalB.push_back(make_tuple(get<1>(elem), get<0>(elem), get<2>(elem)));
+        transposedLocalB.emplace_back(get<1>(elem), get<0>(elem), get<2>(elem));
     }
 
     return transposedLocalB;
