@@ -8,6 +8,7 @@
 #include <numeric>
 #include <random>
 #include <chrono>
+#include <algorithm>
 
 using namespace std;
 
@@ -253,18 +254,52 @@ int main(int argc, char* argv[]) {
     int left, right;
     MPI_Cart_shift(ring_comm, 0, 1, &left, &right);
 
+    sort(sparseLocalA.begin(), sparseLocalA.end(), [](const auto& a, const auto& b) {
+        return get<1>(a) < get<1>(b);
+    });
+
+//    sort(TransposedSparseLocalB.begin(), TransposedSparseLocalB.end(), [](const auto& a, const auto& b) {
+//        return get<1>(a) < get<1>(b);
+//    });
+
     for (int step = 0; step < size; step++) {
         // Multiply sparseLocalA and sparseLocalB
+        vector<SparseMatrix> sparseLocalGroupA(n / size);
+        vector<SparseMatrix> TransposedsparseLocalGroupB(n / size);
+
         for (const auto& elemA : sparseLocalA) {
-            int rowA = get<0>(elemA) % (n / size);
-            int colA = get<1>(elemA);
-            uint64_t valueA = get<2>(elemA);
-            for (const auto& elemB : TransposedSparseLocalB) {
-                int rowB = get<1>(elemB);
-                int colB = get<0>(elemB);
-                uint64_t valueB = get<2>(elemB);
-                if (colA == rowB) {
-                    denseLocalC[rowA * n + colB] += valueA * valueB;
+            int index = get<0>(elemA) % (n / size);
+            sparseLocalGroupA[index].push_back(elemA);
+        }
+        for (const auto& elemB : TransposedSparseLocalB) {
+            int index = get<0>(elemB) % (n / size);
+            TransposedsparseLocalGroupB[index].push_back(elemB);
+        }
+
+        for (int iA = 0; iA < n / size; iA++) {
+            for (int iB = 0; iB < n / size; iB++) {
+                long unsigned int jA = 0, jB = 0;
+                while (jA < sparseLocalGroupA[iA].size() && jB < TransposedsparseLocalGroupB[iB].size()) {
+                    const auto& elemA = sparseLocalGroupA[iA][jA];
+                    const auto& elemB = TransposedsparseLocalGroupB[iB][jB];
+
+                    int rowA = get<0>(elemA) % (n / size);
+                    int colA = get<1>(elemA);
+                    uint64_t valueA = get<2>(elemA);
+
+                    int rowB = get<1>(elemB);
+                    int colB = get<0>(elemB);
+                    uint64_t valueB = get<2>(elemB);
+
+                    if (colA == rowB) {
+                        denseLocalC[rowA * n + colB] += valueA * valueB;
+                        jA++;
+                        jB++;
+                    } else if (colA < rowB) {
+                        jA++;
+                    } else {
+                        jB++;
+                    }
                 }
             }
         }
@@ -398,18 +433,66 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    sort(sparseLocalA2D.begin(), sparseLocalA2D.end(), [](const auto& a, const auto& b) {
+        return get<1>(a) < get<1>(b);
+    });
+
+    sort(sparseLocalB2D.begin(), sparseLocalB2D.end(), [](const auto& a, const auto& b) {
+        return get<0>(a) < get<0>(b);
+    });
+
     for (int step = 0; step < dim; step++) {
         // Multiply sparseLocalA and sparseLocalB
+//        for (const auto& elemA : sparseLocalA2D) {
+//            int rowA = get<0>(elemA) % (n / dim);
+//            int colA = get<1>(elemA) % (n / dim);
+//            uint64_t valueA = get<2>(elemA);
+//            for (const auto& elemB : sparseLocalB2D) {
+//                int rowB = get<0>(elemB) % (n / dim);
+//                int colB = get<1>(elemB) % (n / dim);
+//                uint64_t valueB = get<2>(elemB);
+//                if (colA == rowB) {
+//                    denseLocalC[rowA * n / dim + colB] += valueA * valueB;
+//                }
+//            }
+//        }
+
+        vector<SparseMatrix> sparseLocalGroupA2D(n / dim);
+        vector<SparseMatrix> sparseLocalGroupB2D(n / dim);
+
         for (const auto& elemA : sparseLocalA2D) {
-            int rowA = get<0>(elemA) % (n / dim);
-            int colA = get<1>(elemA) % (n / dim);
-            uint64_t valueA = get<2>(elemA);
-            for (const auto& elemB : sparseLocalB2D) {
-                int rowB = get<0>(elemB) % (n / dim);
-                int colB = get<1>(elemB) % (n / dim);
-                uint64_t valueB = get<2>(elemB);
-                if (colA == rowB) {
-                    denseLocalC[rowA * n / dim + colB] += valueA * valueB;
+            int index = get<0>(elemA) % (n / dim);
+            sparseLocalGroupA2D[index].push_back(elemA);
+        }
+        for (const auto& elemB : sparseLocalB2D) {
+            int index = get<1>(elemB) % (n / dim);
+            sparseLocalGroupB2D[index].push_back(elemB);
+        }
+
+        for (int iA = 0; iA < n / dim; iA++) {
+            for (int iB = 0; iB < n / dim; iB++) {
+                long unsigned int jA = 0, jB = 0;
+                while (jA < sparseLocalGroupA2D[iA].size() && jB < sparseLocalGroupB2D[iB].size()) {
+                    const auto& elemA = sparseLocalGroupA2D[iA][jA];
+                    const auto& elemB = sparseLocalGroupB2D[iB][jB];
+
+                    int rowA = get<0>(elemA) % (n / dim);
+                    int colA = get<1>(elemA) % (n / dim);
+                    uint64_t valueA = get<2>(elemA);
+
+                    int rowB = get<0>(elemB) % (n / dim);
+                    int colB = get<1>(elemB) % (n / dim);
+                    uint64_t valueB = get<2>(elemB);
+
+                    if (colA == rowB) {
+                        denseLocalC[rowA * n / dim + colB] += valueA * valueB;
+                        jA++;
+                        jB++;
+                    } else if (colA < rowB) {
+                        jA++;
+                    } else {
+                        jB++;
+                    }
                 }
             }
         }
