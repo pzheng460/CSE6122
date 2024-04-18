@@ -4,7 +4,7 @@
 CXX = mpicxx
 
 # Compiler flags
-CXXFLAGS = -Wall -std=c++11 -O3
+CXXFLAGS = -Wall -std=c++17 -O3
 
 # Target executable names
 TARGET = spmat

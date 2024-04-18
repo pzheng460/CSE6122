@@ -8,6 +8,7 @@
 #include <numeric>
 #include <random>
 #include <chrono>
+#include <algorithm>
 
 using namespace std;
 
@@ -30,15 +31,10 @@ SparseMatrix generateSparseMatrix(int n, double sparsity, int rank, int size) {
     int startRow = rank * rowsPerProc;
     int endRow = startRow + rowsPerProc;
 
-    int numElements = rowsPerProc * n;  // Total possible elements per processor
-    int estimatedElements = static_cast<int>(numElements * sparsity); // Estimate of actual elements based on sparsity
-    matrix.reserve(estimatedElements);  // Reserve space to reduce allocations
-
     for (int i = startRow; i < endRow; ++i) {
         for (int j = 0; j < n; ++j) {
             if (distDouble(engine) < sparsity) {
                 uint64_t value = distValue(engine) + 1; // Avoid zero
-                // matrix.push_back(make_tuple(i, j, value));
                 matrix.emplace_back(i, j, value);
             }
         }
@@ -97,7 +93,6 @@ SparseMatrix transposeSparseMatrix(const SparseMatrix& localB, int n, int rank, 
 
     // Transpose the received data
     SparseMatrix transposedLocalB;
-    transposedLocalB.reserve(totalRecv);  // Reserve space to avoid using push_back()
     for (const auto& elem : recvBuffer) {
         // transposedLocalB.push_back(make_tuple(get<1>(elem), get<0>(elem), get<2>(elem)));
         transposedLocalB.emplace_back(get<1>(elem), get<0>(elem), get<2>(elem));
@@ -119,7 +114,7 @@ DenseMatrix convertToDenseMatrix(const SparseMatrix& sparseMatrix, int n, int si
 }
 
 // Print a dense matrix to a file stream
-void printDenseMatrix(std::ofstream& outStream, const DenseMatrix& matrix, int n) {
+void printDenseMatrix(ofstream& outStream, const DenseMatrix& matrix, int n) {
     for (size_t i = 0; i < matrix.size(); i++) {
         outStream << matrix[i];
         if ((i + 1) % n == 0) {
@@ -195,21 +190,101 @@ int main(int argc, char* argv[]) {
     int left, right;
     MPI_Cart_shift(ring_comm, 0, 1, &left, &right);
 
+    sort(sparseLocalA.begin(), sparseLocalA.end(), [](const auto& a, const auto& b) {
+        return get<1>(a) < get<1>(b);
+    });
+
+//    sort(TransposedSparseLocalB.begin(), TransposedSparseLocalB.end(), [](const auto& a, const auto& b) {
+//        return get<1>(a) < get<1>(b);
+//    });
+
     for (int step = 0; step < size; step++) {
-        // Multiply sparseLocalA and sparseLocalB
+        vector<SparseMatrix> sparseLocalGroupA(n / size);
+        vector<SparseMatrix> TransposedsparseLocalGroupB(n / size);
+
         for (const auto& elemA : sparseLocalA) {
-            int rowA = get<0>(elemA) % (n / size);
-            int colA = get<1>(elemA);
-            uint64_t valueA = get<2>(elemA);
-            for (const auto& elemB : TransposedSparseLocalB) {
-                int rowB = get<1>(elemB);
-                int colB = get<0>(elemB);
-                uint64_t valueB = get<2>(elemB);
-                if (colA == rowB) {
-                    denseLocalC[rowA * n + colB] += valueA * valueB;
+            int index = get<0>(elemA) % (n / size);
+            sparseLocalGroupA[index].push_back(elemA);
+        }
+        for (const auto& elemB : TransposedSparseLocalB) {
+            int index = get<0>(elemB) % (n / size);
+            TransposedsparseLocalGroupB[index].push_back(elemB);
+        }
+
+        for (int iA = 0; iA < n / size; iA++) {
+            for (int iB = 0; iB < n / size; iB++) {
+                long unsigned int jA = 0, jB = 0;
+                while (jA < sparseLocalGroupA[iA].size() && jB < TransposedsparseLocalGroupB[iB].size()) {
+                    const auto& elemA = sparseLocalGroupA[iA][jA];
+                    const auto& elemB = TransposedsparseLocalGroupB[iB][jB];
+
+                    int rowA = get<0>(elemA) % (n / size);
+                    int colA = get<1>(elemA);
+                    uint64_t valueA = get<2>(elemA);
+
+                    int rowB = get<1>(elemB);
+                    int colB = get<0>(elemB);
+                    uint64_t valueB = get<2>(elemB);
+
+                    if (colA == rowB) {
+                        denseLocalC[rowA * n + colB] += valueA * valueB;
+                        jA++;
+                        jB++;
+                    } else if (colA < rowB) {
+                        jA++;
+                    } else {
+                        jB++;
+                    }
                 }
             }
         }
+
+//        long unsigned int lenA = sparseLocalA.size();
+//        long unsigned int lenB = TransposedSparseLocalB.size();
+//        int iA = 0;
+//        while (iA < lenA) {
+//            const auto& elemiA = sparseLocalA[iA];
+//            int row = get<0>(elemiA);
+//            int iB = 0;
+//            while (iB < lenB) {
+//                const auto& elemiB = TransposedSparseLocalB[iB];
+//                int col = get<0>(elemiB);
+//
+//                int jA = iA;
+//                int jB = iB;
+//
+//                while (jA < lenA && get<0>(sparseLocalA[jA]) == row &&
+//                       jB < lenB && get<0>(TransposedSparseLocalB[jB]) == col) {
+//                    const auto &elemjA = sparseLocalA[jA];
+//                    const auto &elemjB = TransposedSparseLocalB[jB];
+//
+//                    int rowA = get<0>(elemjA) % (n / size);
+//                    int colA = get<1>(elemjA);
+//                    uint64_t valueA = get<2>(elemjA);
+//
+//                    int rowB = get<1>(elemjB);
+//                    int colB = get<0>(elemjB);
+//                    uint64_t valueB = get<2>(elemjB);
+//
+//                    if (colA == rowB) {
+//                        denseLocalC[rowA * n + colB] += valueA * valueB;
+//                        jA++;
+//                        jB++;
+//                    } else if (colA < rowB) {
+//                        jA++;
+//                    } else {
+//                        jB++;
+//                    }
+//                }
+//
+//                while (iB < lenB && get<0>(TransposedSparseLocalB[iB]) == col) {
+//                    iB++;
+//                }
+//            }
+//            while (iA < lenA && get<0>(sparseLocalA[iA]) == row) {
+//                iA++;
+//            }
+//        }
 
         // Shift sparseLocalB to the left
         vector<SparseElement> sendBuffer = TransposedSparseLocalB;

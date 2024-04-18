@@ -33,7 +33,7 @@ Instructions
 
    Sample command line input:
 
-   $ mpirun -np 4 ./spmat 10000 0.001 0 spmat_out spmatBonus_out
+   $ mpirun -np 4 ./spmatBonus 1000 0.01 1 spmat_out spmatBonus_out
 
 Testing Platform
 PACE-ICE cluster
