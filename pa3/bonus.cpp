@@ -9,6 +9,7 @@
 #include <random>
 #include <chrono>
 #include <algorithm>
+#include <unordered_map>
 
 using namespace std;
 
@@ -258,12 +259,21 @@ int main(int argc, char* argv[]) {
         return get<1>(a) < get<1>(b);
     });
 
-//    sort(TransposedSparseLocalB.begin(), TransposedSparseLocalB.end(), [](const auto& a, const auto& b) {
-//        return get<1>(a) < get<1>(b);
-//    });
-
     for (int step = 0; step < size; step++) {
         // Multiply sparseLocalA and sparseLocalB
+//        for (const auto& elemA : sparseLocalA) {
+//            int rowA = get<0>(elemA) % (n / size);
+//            int colA = get<1>(elemA);
+//            uint64_t valueA = get<2>(elemA);
+//            for (const auto& elemB : TransposedSparseLocalB) {
+//                int rowB = get<1>(elemB);
+//                int colB = get<0>(elemB);
+//                uint64_t valueB = get<2>(elemB);
+//                if (colA == rowB) {
+//                    denseLocalC[rowA * n + colB] += valueA * valueB;
+//                }
+//            }
+//        }
         vector<SparseMatrix> sparseLocalGroupA(n / size);
         vector<SparseMatrix> TransposedsparseLocalGroupB(n / size);
 
@@ -433,16 +443,35 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    sort(sparseLocalA2D.begin(), sparseLocalA2D.end(), [](const auto& a, const auto& b) {
-        return get<1>(a) < get<1>(b);
-    });
-
-    sort(sparseLocalB2D.begin(), sparseLocalB2D.end(), [](const auto& a, const auto& b) {
-        return get<0>(a) < get<0>(b);
-    });
+//    sort(sparseLocalA2D.begin(), sparseLocalA2D.end(), [](const auto& a, const auto& b) {
+//        return get<1>(a) < get<1>(b);
+//    });
+//
+//    sort(sparseLocalB2D.begin(), sparseLocalB2D.end(), [](const auto& a, const auto& b) {
+//        return get<0>(a) < get<0>(b);
+//    });
 
     for (int step = 0; step < dim; step++) {
         // Multiply sparseLocalA and sparseLocalB
+        unordered_map<uint64_t, SparseMatrix> sparseLocalMapB2D;
+        for (const auto& elemB : sparseLocalB2D) {
+            int index = get<0>(elemB) % (n / dim);
+            sparseLocalMapB2D[index].push_back(elemB);
+        }
+
+        for (const auto& elemA : sparseLocalA2D) {
+            int rowA = get<0>(elemA) % (n / dim);
+            int colA = get<1>(elemA) % (n / dim);
+            uint64_t valueA = get<2>(elemA);
+            if (sparseLocalMapB2D.find(colA) != sparseLocalMapB2D.end()) {
+                for (const auto& elemB : sparseLocalMapB2D[colA]) {
+                    int colB = get<1>(elemB) % (n / dim);
+                    uint64_t valueB = get<2>(elemB);
+                    denseLocalC[rowA * n / dim + colB] += valueA * valueB;
+                }
+            }
+        }
+
 //        for (const auto& elemA : sparseLocalA2D) {
 //            int rowA = get<0>(elemA) % (n / dim);
 //            int colA = get<1>(elemA) % (n / dim);
@@ -457,45 +486,45 @@ int main(int argc, char* argv[]) {
 //            }
 //        }
 
-        vector<SparseMatrix> sparseLocalGroupA2D(n / dim);
-        vector<SparseMatrix> sparseLocalGroupB2D(n / dim);
-
-        for (const auto& elemA : sparseLocalA2D) {
-            int index = get<0>(elemA) % (n / dim);
-            sparseLocalGroupA2D[index].push_back(elemA);
-        }
-        for (const auto& elemB : sparseLocalB2D) {
-            int index = get<1>(elemB) % (n / dim);
-            sparseLocalGroupB2D[index].push_back(elemB);
-        }
-
-        for (int iA = 0; iA < n / dim; iA++) {
-            for (int iB = 0; iB < n / dim; iB++) {
-                long unsigned int jA = 0, jB = 0;
-                while (jA < sparseLocalGroupA2D[iA].size() && jB < sparseLocalGroupB2D[iB].size()) {
-                    const auto& elemA = sparseLocalGroupA2D[iA][jA];
-                    const auto& elemB = sparseLocalGroupB2D[iB][jB];
-
-                    int rowA = get<0>(elemA) % (n / dim);
-                    int colA = get<1>(elemA) % (n / dim);
-                    uint64_t valueA = get<2>(elemA);
-
-                    int rowB = get<0>(elemB) % (n / dim);
-                    int colB = get<1>(elemB) % (n / dim);
-                    uint64_t valueB = get<2>(elemB);
-
-                    if (colA == rowB) {
-                        denseLocalC[rowA * n / dim + colB] += valueA * valueB;
-                        jA++;
-                        jB++;
-                    } else if (colA < rowB) {
-                        jA++;
-                    } else {
-                        jB++;
-                    }
-                }
-            }
-        }
+//        vector<SparseMatrix> sparseLocalGroupA2D(n / dim);
+//        vector<SparseMatrix> sparseLocalGroupB2D(n / dim);
+//
+//        for (const auto& elemA : sparseLocalA2D) {
+//            int index = get<0>(elemA) % (n / dim);
+//            sparseLocalGroupA2D[index].push_back(elemA);
+//        }
+//        for (const auto& elemB : sparseLocalB2D) {
+//            int index = get<1>(elemB) % (n / dim);
+//            sparseLocalGroupB2D[index].push_back(elemB);
+//        }
+//
+//        for (int iA = 0; iA < n / dim; iA++) {
+//            for (int iB = 0; iB < n / dim; iB++) {
+//                long unsigned int jA = 0, jB = 0;
+//                while (jA < sparseLocalGroupA2D[iA].size() && jB < sparseLocalGroupB2D[iB].size()) {
+//                    const auto& elemA = sparseLocalGroupA2D[iA][jA];
+//                    const auto& elemB = sparseLocalGroupB2D[iB][jB];
+//
+//                    int rowA = get<0>(elemA) % (n / dim);
+//                    int colA = get<1>(elemA) % (n / dim);
+//                    uint64_t valueA = get<2>(elemA);
+//
+//                    int rowB = get<0>(elemB) % (n / dim);
+//                    int colB = get<1>(elemB) % (n / dim);
+//                    uint64_t valueB = get<2>(elemB);
+//
+//                    if (colA == rowB) {
+//                        denseLocalC[rowA * n / dim + colB] += valueA * valueB;
+//                        jA++;
+//                        jB++;
+//                    } else if (colA < rowB) {
+//                        jA++;
+//                    } else {
+//                        jB++;
+//                    }
+//                }
+//            }
+//        }
 
         // Shift sparseLocalA to the left
         vector<SparseElement> sendBuffer0 = sparseLocalA2D;
